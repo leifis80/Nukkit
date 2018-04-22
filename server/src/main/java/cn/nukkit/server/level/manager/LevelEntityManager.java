@@ -6,7 +6,6 @@ import cn.nukkit.api.util.BoundingBox;
 import cn.nukkit.server.entity.BaseEntity;
 import cn.nukkit.server.level.NukkitLevel;
 import cn.nukkit.server.network.minecraft.packet.MoveEntityPacket;
-import cn.nukkit.server.network.minecraft.packet.SetEntityDataPacket;
 import cn.nukkit.server.network.minecraft.packet.SetEntityMotionPacket;
 import cn.nukkit.server.network.minecraft.session.MinecraftSession;
 import cn.nukkit.server.network.minecraft.session.PlayerSession;
@@ -148,7 +147,6 @@ public class LevelEntityManager {
             for (TLongObjectIterator<BaseEntity> it = entitiesCopy.iterator(); it.hasNext(); ) {
                 it.advance();
                 BaseEntity entity = it.value();
-                boolean isPlayer = entity instanceof PlayerSession;
                 try {
                     if (entity.isRemoved()) {
                         if (log.isDebugEnabled()) {
@@ -194,16 +192,6 @@ public class LevelEntityManager {
                         entityMotion.setRuntimeEntityId(entity.getEntityId());
                         entityMotion.setMotion(entity.getMotion());
                         level.getPacketManager().queuePacketForViewers(entity, entityMotion);
-                    }
-
-                    // Check if we need to send metadata updates
-                    if (entity.isMetadataStale()) {
-                        entity.resetStaleMetadata();
-
-                        SetEntityDataPacket entityData = new SetEntityDataPacket();
-                        entityData.setRuntimeEntityId(entity.getEntityId());
-                        entityData.getMetadata().putAll(entity.getMetadata());
-                        level.getPacketManager().queuePacketForViewers(entity, entityData);
                     }
 
                 } catch (Exception e) {

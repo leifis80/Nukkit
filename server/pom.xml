@@ -11,7 +11,7 @@
 
     <artifactId>nukkit-server</artifactId>
     <name>NukkitX-Server</name>
-    <version>1.2.14-SNAPSHOT</version>
+    <version>1.2.20-SNAPSHOT</version>
 
     <properties>
         <maven.build.timestamp.format>yyyyMMdd-HHmm</maven.build.timestamp.format>
@@ -24,13 +24,6 @@
             <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
         </pluginRepository>
     </pluginRepositories>
-
-    <repositories>
-        <repository>
-            <id>leveldb</id>
-            <url>https://repo.gomint.io/content/groups/public</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <dependency>

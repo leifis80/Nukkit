@@ -14,6 +14,7 @@ import cn.nukkit.server.level.NukkitLevel;
 import cn.nukkit.server.network.minecraft.MinecraftPacket;
 import cn.nukkit.server.network.minecraft.data.MetadataConstants;
 import cn.nukkit.server.network.minecraft.packet.AddEntityPacket;
+import cn.nukkit.server.network.minecraft.packet.SetEntityDataPacket;
 import cn.nukkit.server.network.minecraft.util.MetadataDictionary;
 import com.flowpowered.math.vector.Vector3f;
 import com.flowpowered.math.vector.Vector3i;
@@ -43,7 +44,6 @@ public class BaseEntity implements Entity {
     private boolean removed = false;
     private BoundingBox boundingBox;
     private boolean movementStale;
-    private boolean metadataStale;
     protected final BitSet metadataFlags = new BitSet(64);
 
     public BaseEntity(EntityType entityType, Vector3f position, NukkitLevel level, NukkitServer server) {
@@ -189,7 +189,7 @@ public class BaseEntity implements Entity {
     public boolean isOnGround() {
         Vector3i blockPosition = getPosition().sub(0f, 0.1f, 0f).toInt();
 
-        if (blockPosition.getY() < 0) {
+        if (blockPosition.getY() < 0 || blockPosition.getY() > 255) {
             return false;
         }
 
@@ -360,10 +360,16 @@ public class BaseEntity implements Entity {
 
     protected void setFlag(MetadataConstants.Flag flag, boolean value) {
         if (value != metadataFlags.get(flag.ordinal())) {
-            metadataFlags.set(flag.ordinal(), value);
-            metadataStale = true;
+            metadataFlags.flip(flag.ordinal());
+            onMetadataUpdate(getMetadataFlags());
         }
+    }
 
+    protected void onMetadataUpdate(MetadataDictionary metadata) {
+        SetEntityDataPacket packet = new SetEntityDataPacket();
+        packet.setRuntimeEntityId(getEntityId());
+        packet.getMetadata().putAll(metadata);
+        level.getPacketManager().queuePacketForViewers(this, packet);
     }
 
     protected boolean getFlag(MetadataConstants.Flag flag) {
@@ -378,14 +384,17 @@ public class BaseEntity implements Entity {
         return teleported;
     }
 
-    protected long getMetadataFlagValue() {
+    protected MetadataDictionary getMetadataFlags() {
+        MetadataDictionary dictionary = new MetadataDictionary();
         long[] array = metadataFlags.toLongArray();
-        return array.length == 0 ? 0 : array[0];
+        dictionary.put(FLAGS, array.length > 0 ? array[0] : 0);
+        return dictionary;
     }
 
     public MetadataDictionary getMetadata() {
         MetadataDictionary dictionary = new MetadataDictionary();
-        dictionary.put(MetadataConstants.FLAGS, getMetadataFlagValue());
+        long[] array = metadataFlags.toLongArray();
+        dictionary.put(FLAGS, array.length > 0 ? array[0] : 0);
         dictionary.put(NAMETAG, "");
         dictionary.put(ENTITY_AGE, 0);
         dictionary.put(SCALE, 1f);
@@ -409,15 +418,6 @@ public class BaseEntity implements Entity {
         checkIfAlive();
         movementStale = false;
         teleported = false;
-    }
-
-    public boolean isMetadataStale() {
-        return metadataStale;
-    }
-
-    public void resetStaleMetadata() {
-        checkIfAlive();
-        metadataStale = false;
     }
 
     public boolean onItemPickup(ItemInstance item) {

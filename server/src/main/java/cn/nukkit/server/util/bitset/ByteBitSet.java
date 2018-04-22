@@ -7,12 +7,21 @@ public class ByteBitSet implements BitSet {
         bitset = 0;
     }
 
+    public ByteBitSet(byte bitset) {
+        this.bitset = bitset;
+    }
+
     public ByteBitSet(int bitset) {
         this.bitset = (byte) bitset;
     }
 
     public ByteBitSet(ByteBitSet bitSet) {
         this.bitset = bitSet.bitset;
+    }
+
+    @Override
+    public void flip(int index) {
+        bitset = BitUtil.flipBit(bitset, index);
     }
 
     @Override
@@ -26,23 +35,28 @@ public class ByteBitSet implements BitSet {
     }
 
     @Override
-    public long getAsLong() {
-        return 0;
+    public long[] getLongs() {
+        return new long[]{bitset};
     }
 
     @Override
-    public int getAsInt() {
-        return bitset;
+    public int[] getInts() {
+        return new int[]{bitset};
     }
 
     @Override
-    public short getAsShort() {
-        return bitset;
+    public short[] getShorts() {
+        return new short[]{bitset};
     }
 
     @Override
-    public byte getAsByte() {
-        return bitset;
+    public byte[] getBytes() {
+        return new byte[]{bitset};
+    }
+
+    @Override
+    public void clear() {
+        bitset = 0;
     }
 
     public byte get() {
@@ -52,8 +66,14 @@ public class ByteBitSet implements BitSet {
     @Override
     public boolean equals(Object o) {
         if (o == this) return true;
-        if (!(o instanceof BitSet)) return false;
-        BitSet that = (BitSet) o;
-        return this.bitset == that.getAsByte();
+        if (!(o instanceof ByteBitSet)) return false;
+        ByteBitSet that = (ByteBitSet) o;
+        return this.bitset == that.get();
+    }
+
+    private static void checkIndex(int index) {
+        if (!(index >= 0 && index < 8)) {
+            throw new IndexOutOfBoundsException("Expected value 0-7");
+        }
     }
 }

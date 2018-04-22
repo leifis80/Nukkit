@@ -1,49 +1,42 @@
 package cn.nukkit.server.level.chunk;
 
+import cn.nukkit.server.level.util.BlockStorage;
 import cn.nukkit.server.level.util.NibbleArray;
 import com.google.common.base.Preconditions;
+import io.netty.buffer.ByteBuf;
 
 public class ChunkSection {
-
     private static final int SECTION_SIZE = 4096;
-    private final byte[] ids;
-    private final NibbleArray data;
+    private static final byte CHUNKSECTION_VERSION = 8;
+    private final BlockStorage[] storage;
     private final NibbleArray skyLight;
     private final NibbleArray blockLight;
 
     public ChunkSection() {
-        this.ids = new byte[SECTION_SIZE];
-        this.data = new NibbleArray(SECTION_SIZE);
+        this.storage = new BlockStorage[]{new BlockStorage(), new BlockStorage()};
         this.skyLight = new NibbleArray(SECTION_SIZE);
         this.blockLight = new NibbleArray(SECTION_SIZE);
     }
 
-    public ChunkSection(byte[] ids, byte[] data, byte[] skyLight, byte[] blockLight) {
-        Preconditions.checkArgument(ids.length == SECTION_SIZE);
-        Preconditions.checkArgument(data.length == SECTION_SIZE / 2);
+    public ChunkSection(BlockStorage[] storage, byte[] skyLight, byte[] blockLight) {
+        Preconditions.checkArgument(storage.length >= 2);
         Preconditions.checkArgument(skyLight.length == SECTION_SIZE / 2);
         Preconditions.checkArgument(blockLight.length == SECTION_SIZE / 2);
-        this.ids = ids;
-        this.data = new NibbleArray(data);
+        this.storage = storage;
         this.skyLight = new NibbleArray(skyLight);
         this.blockLight = new NibbleArray(blockLight);
     }
 
-    public ChunkSection(byte[] ids, NibbleArray data, NibbleArray skyLight, NibbleArray blockLight) {
-        this.ids = ids;
-        this.data = data;
+    private ChunkSection(BlockStorage[] storage, NibbleArray skyLight, NibbleArray blockLight) {
+        this.storage = storage;
         this.skyLight = skyLight;
         this.blockLight = blockLight;
     }
 
-    public int getBlockId(int x, int y, int z) {
+    public int getBlockId(int x, int y, int z, int layer) {
         checkBounds(x, y, z);
-        return ids[blockPosition(x, y, z)];
-    }
-
-    public byte getBlockData(int x, int y, int z) {
-        checkBounds(x, y, z);
-        return data.get(blockPosition(x, y, z));
+        checkLayer(layer);
+        return storage[layer].getBlockId(blockPosition(x, y, z));
     }
 
     public byte getSkyLight(int x, int y, int z) {
@@ -56,14 +49,10 @@ public class ChunkSection {
         return blockLight.get(blockPosition(x, y, z));
     }
 
-    public void setBlockId(int x, int y, int z, byte id) {
+    public void setBlockId(int x, int y, int z, int layer, int id) {
         checkBounds(x, y, z);
-        ids[blockPosition(x, y, z)] = id;
-    }
-
-    public void setBlockData(int x, int y, int z, byte data) {
-        checkBounds(x, y, z);
-        this.data.set(blockPosition(x, y, z), data);
+        checkLayer(layer);
+        storage[layer].setBlockId(blockPosition(x, y, z), id);
     }
 
     public void setSkyLight(int x, int y, int z, byte val) {
@@ -76,14 +65,6 @@ public class ChunkSection {
         blockLight.set(blockPosition(x, y, z), val);
     }
 
-    public byte[] getIds() {
-        return ids;
-    }
-
-    public NibbleArray getData() {
-        return data;
-    }
-
     public NibbleArray getSkyLight() {
         return skyLight;
     }
@@ -92,22 +73,33 @@ public class ChunkSection {
         return blockLight;
     }
 
+    void writeTo(ByteBuf buf){
+        buf.writeByte(CHUNKSECTION_VERSION);
+        buf.writeByte(storage.length);
+        for (BlockStorage blockStorage : storage) {
+            blockStorage.writeTo(buf);
+        }
+    }
+
     public ChunkSection copy() {
-        return new ChunkSection(
-                ids.clone(),
-                data.copy(),
-                skyLight.copy(),
-                blockLight.copy()
-        );
+        BlockStorage[] storage = new BlockStorage[this.storage.length];
+        for (int i = 0; i < storage.length; i++) {
+            storage[i] = this.storage[i].copy();
+        }
+        return new ChunkSection(storage, skyLight.copy(), blockLight.copy());
     }
 
     public boolean isEmpty() {
-        for (byte id : ids) {
-            if (id != 0) {
+        for (BlockStorage blockStorage : storage) {
+            if (!blockStorage.isEmpty()) {
                 return false;
             }
         }
         return true;
+    }
+
+    private void checkLayer(int layer) {
+        Preconditions.checkArgument(layer >= 0 && layer <= storage.length);
     }
 
     private static int blockPosition(int x, int y, int z) {

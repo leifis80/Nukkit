@@ -1541,7 +1541,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                         if (this.inAirTicks == 3 && swimming == 0) {
                             jump = 0.7;
                         }
-                        this.getFoodData().updateFoodExpLevel(0.1 * distance + jump + swimming);
+                        this.getFoodData().updateFoodExpLevel(0.06 * distance + jump + swimming);
                     } else {
                         if (this.inAirTicks == 3 && swimming == 0) {
                             jump = 0.2;
@@ -1674,13 +1674,19 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                         double expectedVelocity = (-this.getGravity()) / ((double) this.getDrag()) - ((-this.getGravity()) / ((double) this.getDrag())) * Math.exp(-((double) this.getDrag()) * ((double) (this.inAirTicks - this.startAirTicks)));
                         double diff = (this.speed.y - expectedVelocity) * (this.speed.y - expectedVelocity);
 
-                        if (!this.hasEffect(Effect.JUMP) && diff > 0.6 && expectedVelocity < this.speed.y) {
+                        Block block = level.getBlock(this);
+                        boolean onLadder = block.getId() == BlockID.LADDER;
+
+                        if (!this.hasEffect(Effect.JUMP) && diff > 0.6 && expectedVelocity < this.speed.y && !onLadder) {
                             if (this.inAirTicks < 100) {
                                 //this.sendSettings();
                                 this.setMotion(new Vector3(0, expectedVelocity, 0));
                             } else if (this.kick(PlayerKickEvent.Reason.FLYING_DISABLED, "Flying is not enabled on this server")) {
                                 return false;
                             }
+                        }
+                        if (onLadder) {
+                            this.resetFallDistance();
                         }
                     }
 
@@ -3735,7 +3741,8 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
 
         //this is a dirty hack to prevent dying in a different level than the respawn point from breaking everything
         if (this.level != pos.level)   {
-            this.teleportImmediate(new Location(0, -100, 0, pos.level));
+            this.teleport(new Location(pos.x, -100, pos.z, pos.level), null);
+            this.teleport(new Location(pos.x, pos.y, pos.z, pos.level), null);
         }
 
         this.dataPacket(pk);

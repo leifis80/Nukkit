@@ -1792,7 +1792,16 @@ public class Level implements ChunkManager, Metadatable {
 
             breakTime -= 0.15;
 
-            BlockBreakEvent ev = new BlockBreakEvent(player, target, item, player.isCreative(),
+            Item[] eventDrops;
+            if (!player.isSurvival()) {
+                eventDrops = new Item[0];
+            } else if (item.getEnchantment(Enchantment.ID_SILK_TOUCH) != null && target.canSilkTouch()) {
+                eventDrops = new Item[]{target.toItem()};
+            } else {
+                eventDrops = target.getDrops(item);
+            }
+
+            BlockBreakEvent ev = new BlockBreakEvent(player, target, item, eventDrops, player.isCreative(),
                     (player.lastBreak + breakTime * 1000) > System.currentTimeMillis());
 
             double distance;
@@ -1820,6 +1829,8 @@ public class Level implements ChunkManager, Metadatable {
             drops = ev.getDrops();
         } else if (!target.isBreakable(item)) {
             return null;
+        } else if(item.getEnchantment(Enchantment.ID_SILK_TOUCH) != null) {
+            drops = new Item[] {target.toItem()};
         } else {
             drops = target.getDrops(item);
         }
@@ -1938,7 +1949,7 @@ public class Level implements ChunkManager, Metadatable {
     }
 
     public Item useItemOn(Vector3 vector, Item item, BlockFace face, float fx, float fy, float fz, Player player) {
-        return this.useItemOn(vector, item, face, fx, fy, fz, player, false);
+        return this.useItemOn(vector, item, face, fx, fy, fz, player, true);
     }
 
 

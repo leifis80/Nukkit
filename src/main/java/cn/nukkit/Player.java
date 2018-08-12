@@ -75,7 +75,6 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 
-import java.awt.*;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteOrder;
@@ -1919,6 +1918,10 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
 
         nbt.putLong("lastPlayed", System.currentTimeMillis() / 1000);
 
+        UUID uuid = getUniqueId();
+        nbt.putLong("UUIDLeast", uuid.getLeastSignificantBits());
+        nbt.putLong("UUIDMost", uuid.getMostSignificantBits());
+
         if (this.server.getAutoSave()) {
             this.server.saveOfflinePlayerData(this.username, nbt, true);
         }
@@ -2457,6 +2460,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                             }
                             break packetswitch;
                         case PlayerActionPacket.ACTION_DIMENSION_CHANGE_ACK:
+                            this.sendPosition(this, this.yaw, this.pitch, MovePlayerPacket.MODE_NORMAL);
                             break; //TODO
                         case PlayerActionPacket.ACTION_START_GLIDE:
                             PlayerToggleGlideEvent playerToggleGlideEvent = new PlayerToggleGlideEvent(this, true);
@@ -4235,7 +4239,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
      * @return DummyBossBar object
      * @see DummyBossBar#setText(String) Set BossBar text
      * @see DummyBossBar#setLength(float) Set BossBar length
-     * @see DummyBossBar#setColor(Color) Set BossBar color
+     * @see DummyBossBar#setColor(BlockColor) Set BossBar color
      */
     public DummyBossBar getDummyBossBar(long bossBarId) {
         return this.dummyBossBars.getOrDefault(bossBarId, null);
@@ -4508,6 +4512,9 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
     private void setDimension(int dimension) {
         ChangeDimensionPacket pk = new ChangeDimensionPacket();
         pk.dimension = dimension;
+        pk.x = (float) this.x;
+        pk.y = (float) this.y;
+        pk.z = (float) this.z;
         this.directDataPacket(pk);
     }
 
@@ -4523,6 +4530,11 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
             spawnPosition.z = spawn.getFloorZ();
             this.dataPacket(spawnPosition);
 
+            int dimensionId = level.getDimension();
+            if (oldLevel.getDimension() != dimensionId) {
+                this.setDimension(dimensionId);
+            }
+
             // Remove old chunks
             for (long index : new ArrayList<>(this.usedChunks.keySet())) {
                 int chunkX = Level.getHashX(index);
@@ -4531,14 +4543,13 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
             }
             this.usedChunks.clear();
 
-            forceSendEmptyChunks();
+            SetTimePacket setTime = new SetTimePacket();
+            setTime.time = level.getTime();
+            this.dataPacket(setTime);
 
-            SetTimePacket pk = new SetTimePacket();
-            pk.time = level.getTime();
-            this.dataPacket(pk);
-
-            int distance = this.viewDistance * 2 * 16 * 2;
-            this.sendPosition(this.add(distance, 0, distance), this.yaw, this.pitch, MovePlayerPacket.MODE_RESET);
+            GameRulesChangedPacket gameRulesChanged = new GameRulesChangedPacket();
+            gameRulesChanged.gameRules = level.getGameRules();
+            this.dataPacket(gameRulesChanged);
             return true;
         }
 

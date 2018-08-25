@@ -765,6 +765,10 @@ public class Level implements ChunkManager, Metadatable {
         if (!this.updateEntities.isEmpty()) {
             for (long id : new ArrayList<>(this.updateEntities.keySet())) {
                 Entity entity = this.updateEntities.get(id);
+                if (entity == null) {
+                    this.updateEntities.remove(id);
+                    continue;
+                }
                 if (entity.closed || !entity.onUpdate(currentTick)) {
                     this.updateEntities.remove(id);
                 }
@@ -1987,7 +1991,7 @@ public class Level implements ChunkManager, Metadatable {
             PlayerInteractEvent ev = new PlayerInteractEvent(player, item, target, face,
                     target.getId() == 0 ? Action.RIGHT_CLICK_AIR : Action.RIGHT_CLICK_BLOCK);
 
-            if (player.getGamemode() > 2) {
+            if (player.getGamemode() > 1) {
                 ev.setCancelled();
             }
 
